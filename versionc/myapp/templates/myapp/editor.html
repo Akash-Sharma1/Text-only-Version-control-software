@@ -1,0 +1,18 @@
+
+
+<h1>commit {{ num }}</h1>
+<form method="post" novalidate>
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit" onclick="myFunction()">Submit</button>
+    <a href="\clear" class="btn btn-default" onclick="myFunction2()">Discard all changes</a>
+  </form>
+
+<script>
+function myFunction() {
+  alert("Work saved Succesfully!");
+}
+function myFunction2() {
+    alert("Discarded all changes, Start Fresh!!");
+  }
+</script>
