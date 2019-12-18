@@ -1,13 +1,11 @@
-
-
 <h1>commit {{ num }}</h1>
-<form method="post" novalidate>
+
+<form action="http://127.0.0.1:8000/" method="post">
     {% csrf_token %}
-    {{ form }}
+    <textarea rows="35" cols="150" name="text" placeholder="Go on, write something.">{{savedtext}}</textarea>
     <button type="submit" onclick="myFunction()">Submit</button>
     <a href="\clear" class="btn btn-default" onclick="myFunction2()">Discard all changes</a>
-  </form>
-
+</form>
 <script>
 function myFunction() {
   alert("Work saved Succesfully!");

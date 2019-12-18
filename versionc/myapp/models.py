@@ -6,7 +6,7 @@ class commit_table(models.Model):
     
 class sha_table(models.Model):
     sha=models.CharField(max_length=50)
-    string=models.TextField(primary_key=True)
+    string=models.TextField()
 
 class head_table(models.Model):
     head=models.IntegerField()

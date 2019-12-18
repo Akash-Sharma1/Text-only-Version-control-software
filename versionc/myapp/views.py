@@ -3,7 +3,6 @@ from django.shortcuts import render
 from .models import commit_table,head_table,sha_table
 from django.db import connection
 from django.http import HttpResponseRedirect
-from .forms import commitform
 
 import hashlib
 
@@ -19,31 +18,15 @@ def cleartable(request):
         cursor.execute("delete from myapp_commit_table;")
         cursor.execute("delete from myapp_head_table;")
         cursor.execute("insert into myapp_head_table (head,nextcommit) values (1,1);")
-        
-    form = commitform()
-    return render(request, 'myapp/editor.html', {'form': form})
-
-#def add(request):
-#    if request.method == 'POST':
-#        form = inform(request.POST)
-#        return HttpResponseRedirect('/thanks/')
-#    else:
-#        return HttpResponse("OK")
-#    num="c"+"3"
-#    with connection.cursor() as cursor:
-#        cursor.execute("ALTER TABLE myapp_commit_table ADD COLUMN {0} varchar(50) NOT NULL;".format(num))
-#    return HttpResponse("OK")
+    return HttpResponseRedirect('/')
 
 def editor(request):
     if request.method == 'POST':
-        form = commitform(request.POST)
-        if form.is_valid():
-            pass
-        text = form['TextFile'].value()
+        text=request.POST['text']
+        text=text.splitlines()
         head=head_table.objects.all()[0]
         hh=head.nextcommit
         num="c"+str(hh)
-        text=text.splitlines()
         line=1
         with connection.cursor() as cursor:
             try:
@@ -67,11 +50,16 @@ def editor(request):
                 with connection.cursor() as cursor:
                     cursor.execute("insert into myapp_commit_table (id,{0}) values( {1} ,{2} );".format(num,line,result))
             line=line+1
-        
         head.head=head.nextcommit
         head.nextcommit+=1
         head.save()
-        messages.add_message(request, messages.INFO, 'Hello world.')
     else:
-        form = commitform()
-    return render(request, 'myapp/editor.html', {'form': form})
+        head=head_table.objects.all()[0]
+        hh=head.head
+        num="c"+str(hh)
+        strg=""
+        for line in commit_table.objects.all():
+            shas=line.values(num)
+            text=sha_table.object.get(pk=shas)
+            strg=strg+text
+    return render(request, 'myapp/editor.html',{'savedtext':strg})
