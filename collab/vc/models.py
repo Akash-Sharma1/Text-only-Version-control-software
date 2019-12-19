@@ -3,11 +3,12 @@ from django.contrib.postgres.fields import ArrayField
 
 # Create your models here.
 class cred(models.Model):
-    email=models.CharField(max_length=50)
-    invcode=models.CharField(max_length=50)
+    email=models.CharField(max_length=50, null=False)
+    invcode=models.CharField(max_length=50, null=False)
 
 class commit_table(models.Model):
-    code=models.CharField(max_length=50)
+    code=models.CharField(max_length=50 , null=False)
+    email=models.CharField(max_length=50, null=False)
     linenum=models.IntegerField()
     key = ArrayField(
         ArrayField(
@@ -19,9 +20,9 @@ class commit_table(models.Model):
     
 class sha_table(models.Model):
     sha=models.CharField(max_length=50 , primary_key=True)
-    string=models.TextField()
+    string=models.TextField(null=False)
 
 class headt(models.Model):
-    email=models.CharField(max_length=50, primary_key=True)
-    head=models.IntegerField()
-    nextcommit=models.IntegerField()
+    code=models.CharField(max_length=50, primary_key=True)
+    head=models.IntegerField(null=False)
+    nextcommit=models.IntegerField(null=False)

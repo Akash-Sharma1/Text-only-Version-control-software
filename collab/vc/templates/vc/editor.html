@@ -1,12 +1,16 @@
-<h1>commit {{ num }}</h1>
-
 <form action="http://127.0.0.1:8000/edit" method="post">
     {% csrf_token %}
-    Email Id: <input type="hidden" name="email" value="{{email}}">{{email}} <br>
-    Workspace code: <input type="hidden" name="code" value="{{code}}">{{code}}<br>
-    <textarea rows="35" cols="150" name="text" placeholder="Go on, write something.">{{savedtext}}</textarea>
+    <label style="margin-left: 1200px">Email Id:   {{email}} </label>
+    <br>
+    <label style="margin-left: 1200px">Workspace Id: {{code}}</label>
+    <br>
+    <a style="margin-left: 1200px" href="\clear" class="btn btn-default" onclick="myFunction2()">Delete file</a>
+    <a style="margin-left: 1200px" href="\roll" class="btn btn-default">Rollback</a><br>
+    <label>Workspace:</label>
+<div contenteditable="True">
+    <textarea name="text" rows="35" cols="190"placeholder="....">{{savedtext}}</textarea>
     <button type="submit" onclick="myFunction()">Submit</button>
-    <a href="\clear" class="btn btn-default" onclick="myFunction2()">Discard all changes and logout</a>
+</div>
 </form>
 <script>
 function myFunction() {

@@ -1,16 +1,16 @@
 <h1>Plese enter the Invitation code{{ num }}</h1>
 <center>
-<form action="http://127.0.0.1:8000/edit" method="GET">
+<form action="http://127.0.0.1:8000/" method="POST">
     {% csrf_token %}
-    Email id: <input type="text" name="email" placeholder="Go on, write something."><br>
-    Invite code: <input type="text" name="code" placeholder="Go on, write something."><br>
+    Email id: <input type="text" name="email" ><br>
+    Invite code: <input type="text" name="code"><br>
     <button type="submit" onclick="myFunction()">Submit</button>
 </form>
 <br><br>
 <form action="http://127.0.0.1:8000/signup" method="POST">
     {% csrf_token %}
-    Email id: <input type="text" name="email2" placeholder="Go on, sign up"><br>
-    Invite code: <input type="text" name="code2" placeholder="Go on, sign up"><br>
+    Email id: <input type="text" name="email2"><br>
+    Invite code: <input type="text" name="code2"><br>
     <button type="submit" onclick="myFunction()">Sign up</button>
 </form>
 </center>
