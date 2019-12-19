@@ -20,7 +20,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '83r3ic07_b*0!x^a6@=2a%#x830r#tvfop^w&-1a#v^)*gp=nl'
+SECRET_KEY = 'bl@!p!1rmi^#z)(a)bm8_exmlq5-agc=v7@py142h)6fays-%6'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -74,17 +74,17 @@ WSGI_APPLICATION = 'collab.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME':'vcdb',
+        'NAME':'dbvc',
         'USER':'postgres',
         'PASSWORD': '123454321',
         'PORT':'5432',
         'HOST':'localhost',
     }
 }
+
 
 
 # Password validation
