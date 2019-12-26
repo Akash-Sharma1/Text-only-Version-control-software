@@ -1,9 +1,9 @@
 from django.http import HttpResponse
 from django.shortcuts import render
-from .models import headt,commit_table,sha_table,cred
+from .models import headt,commit_table,sha_table,cred,commit_info,code_info
 from django.db import connection
 from django.http import HttpResponseRedirect
-
+import datetime
 import hashlib
 
 def cleartable(request):
@@ -11,9 +11,10 @@ def cleartable(request):
         cursor.execute("delete from vc_sha_table;")
         cursor.execute("delete from vc_commit_table;")
         cursor.execute("delete from vc_headt;")
+        cursor.execute("delete from vc_commit_info;")
     return HttpResponseRedirect('/')
 
-def get_text(lastemail,lastinv,hh):
+def get_text(lastinv,hh):
     num=str(hh)
     strg=""
     dic={}
@@ -28,7 +29,7 @@ def get_text(lastemail,lastinv,hh):
             continue
         dic[line.linenum]=str(text)+"\r\n"
     for i in sorted(dic):
-        strg+=dic[i]
+        strg+=str(dic[i])
     return strg
 
 def editor(request):
@@ -41,6 +42,16 @@ def editor(request):
         hh=head.nextcommit
         num=str(hh)
         line=1
+        q=commit_info.objects.filter(code=fixedcode)
+        if q.count()==0:
+            q=commit_info(code=str(fixedcode),commit_email=["null"])
+            q.save()
+        q=commit_info.objects.filter(code=fixedcode)
+        q=q[0]
+        q.commit_email.append(str(fixedemail))
+        q.last_commit_time=datetime.datetime.now()
+        q.last_commit_date=datetime.date.today()
+        q.save()
         for strg in text:
             result = hashlib.sha1(strg.encode())
             result = result.hexdigest()
@@ -59,11 +70,11 @@ def editor(request):
                 arr=[]
                 for i in range(0,1000):
                     arr.append('null')
-                q=commit_table(code=fixedcode,linenum=line,key=arr,email=fixedemail)
-                q.save()
-                q=commit_table.objects.filter(code=fixedcode)
-                q=q.filter(linenum=line)
-                q=q[0]
+                q=commit_table(code=fixedcode,linenum=line,key=arr)
+                #q.save()
+                #q=commit_table.objects.filter(code=fixedcode)
+                #q=q.filter(linenum=line)
+                #q=q[0]
                 q.key[hh-1]=result
                 q.save()
             line=line+1
@@ -80,24 +91,72 @@ def editor(request):
             q.save()
         head=headt.objects.get(pk=lastinv)
         hh=head.head
-        strg=get_text(lastemail,lastinv,hh)
+        strg=get_text(lastinv,hh)
         return render(request, 'vc/editor.html',{'savedtext':strg , 'code': lastinv , 'email' : lastemail})
     
 
 def index(request):
     if request.method=='POST':
-        flag=0
-        q=cred.objects.filter(email=request.POST['email'])
-        q.filter(invcode=request.POST['code'])
-        if q.count()==0:
-            return HttpResponseRedirect('/')
-        return HttpResponseRedirect("/edit")
+        q=cred.objects.get(pk=request.POST['email'])
+        if q.password==request.POST['pass1']:
+            request.session['email']=request.POST['email']
+            return HttpResponseRedirect('/codes')
+        return HttpResponseRedirect("/")
     return render(request,'vc/index.html')
+
+def codes(request):
+    if request.method=='POST':
+        flag=0
+        q=code_info.objects.filter(code=request.POST['code'])
+        if q.count()==0:
+            return HttpResponseRedirect('/codes')
+        q=q[0]
+        for data in q.email:
+            if data==request.session['email']:
+                flag=1
+                request.session['code']=request.POST['code']
+        if flag==1:
+            return HttpResponseRedirect('/edit')
+    return render(request,'vc/codes.html')
+
+def createcode(request):
+    if request.method=='POST':
+        q=code_info.objects.filter(code=request.POST['code2'])
+        if q.count()==0:
+            q=code_info(code=request.POST['code2'], email=[])
+            q.email.append(request.session['email'])
+            q.save()
+    return HttpResponseRedirect("/codes")
+
+def share(request):
+    if request.method=='POST':
+        flag=0
+        q=code_info.objects.filter(code=request.session['code'])
+        if q.count()==0:
+            return HttpResponseRedirect('/share')
+        q=q[0]
+        ll=cred.objects.filter(email=request.POST['email'])
+        if ll.count()==0 or request.session['email']!=q.email[0]:
+            return HttpResponseRedirect('/share')
+        for data in q.email:
+            if data==request.POST['email']:
+                flag=1
+        if flag==0:
+            q.email.append(request.POST['email'])
+            q.save()
+            return HttpResponseRedirect('/edit')
+        else:
+            return HttpResponseRedirect('/share')
+    return render(request,'vc/shares.html')
+
 
 def signup(request):
     if request.method=='POST':
-        q=cred(email=request.POST['email2'], invcode=request.POST['code2'])
-        q.save()
+        q=cred.objects.filter(email=request.POST['email2'])
+        q.filter(password=request.POST['pass2'])
+        if q.count()==0:
+            q=cred(email=request.POST['email2'], password=request.POST['pass2'])
+            q.save()
     return HttpResponseRedirect("/")
 
 def rollback(request):
@@ -112,12 +171,78 @@ def rollback(request):
         head=ll.head
         arr=[]
         for i in range(ll.nextcommit-1,0,-1):
+            eml=commit_info.objects.get(pk=request.session['code'])
+            eml=eml.commit_email[i]
             temp={}
             temp['id']=i
-            temp['email']=request.session['email']
-            temp['text']=get_text(request.session['email'],request.session['code'],i)
+            temp['email']=eml
+            temp['text']=get_text(request.session['code'],i)
             arr.append(temp)
         return render(request,'vc/roll.html',{'arr':arr,'email':request.session['email'],'code':request.session['code']})
+
+def makechng(m1,a,var):
+    stra=""
+    j=0
+    i=0
+    if m1[0]==0:
+        stra="Modified:."
+    elif m1[0]==1:
+        if var==1:
+            stra="Added:>>>>"
+        else:
+            stra="Removed:>>"
+    else:
+        stra="Same:>>>>>"
+    while i<len(a):
+        if a[i:i+2]=="\r\n":
+            stra+="\r\n"
+            i+=1
+            if i==len(a) or a[i:]=="\r\n" or a[i:]=="\n" or a[i:]=="\r":
+                break
+            j+=1
+            if i<len(a) and j<len(m1) and m1[j]==0:
+                stra+="Modified:."
+            elif i<len(a)  and j<len(m1) and m1[j]==1:
+                if var==1:
+                    stra+="Added:>>>>"
+                else:
+                    stra+="Removed>>>"
+            elif  i<len(a) and j<len(m1):
+                stra+="Same:>>>>>"
+        else:
+            stra+=a[i]
+        i+=1
+    return stra
+    
+def comp(request):
+    if request.method=='POST':
+        a=int(request.POST['one'])
+        b=int(request.POST['two'])
+        a=get_text(request.session['code'],a)
+        b=get_text(request.session['code'],b)
+        dic= lcs(a,b)
+        m1=dic[0]
+        m2=dic[1]
+        #return HttpResponse(m1)
+        stra=a
+        strb=b
+        stra=makechng(m1,a,1)
+        strb=makechng(m2,b,0)
+        return render(request,'vc/showside.html',{'m1':stra,'m2':strb,'c1':request.POST['one'],'c2':request.POST['two']})
+    else:
+        ll=headt.objects.get(pk=request.session['code'])
+        head=ll.head
+        arr=[]
+        for i in range(ll.nextcommit-1,0,-1):
+            eml=commit_info.objects.get(pk=request.session['code'])
+            eml=eml.commit_email[i]
+            temp={}
+            temp['id']=i
+            temp['email']=eml
+            temp['text']=get_text(request.session['code'],i)
+            arr.append(temp)
+        return render(request,'vc/compare.html',{'arr':arr,'email':request.session['email'],'code':request.session['code']})
+
 
 def lcs(a,b):
     dp=[[0 for i in range(len(b)+1)] for j in range(len(a)+1)]
@@ -152,12 +277,6 @@ def lcs(a,b):
     counta=countb=0
     i=0
     j=0
-    print(a)
-    print(b)
-    print(resa)
-    print(resb)
-    print(ans)
-   
     # 0 changed
     # 1 removed / added
     # 2 same
@@ -199,7 +318,6 @@ def lcs(a,b):
                 if(dicb[j]==0):
                     c2+=1
                 dicb[j]=1
-        print(str(counta)+" "+str(countb)+"=>"+str(c1)+" "+str(c2))
         flag=1
         if counta==countb and c1==c2 and counta==c1 and linea==1 and lineb==1:
             if  i==len(a) and j==len(b) :
@@ -248,12 +366,12 @@ def lcs(a,b):
             modifyB.append(1) #remove
         if j==len(b):
             while i<len(a):
-                if b[i:i+2]=="\r\n":
-                    modifyA.append(1) #add
+                if a[i:i+2]=="\r\n":
+                    modifyA.append(1) #adds
                 i+=1
-            modifyB.append(1) #add
-    print(modifyA)
-    print(modifyB)
+            modifyA.append(1) #add
+    dict={0:modifyA,1:modifyB,3:resa,4:resb}
+    return dict
     
 #lcs("abc\r\ndefgh\r\nijklmnopq\r\nrstuvw\r\nxyz","abc\r\ndefgh\r\nhrs\r\nstuv\r\nabcdefgh")
                    
