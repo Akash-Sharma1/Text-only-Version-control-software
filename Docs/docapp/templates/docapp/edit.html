@@ -1,0 +1,125 @@
+<style>
+    textarea {
+        outline: none;
+      resize: none;
+      width: 1066px;
+      height: 500px;     
+      border-radius: 4px;
+      border: 1px solid #cccccc;
+      padding: 5px;
+    }
+    input[type=text], select {
+        padding: 8px 20px;
+        margin: 8px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+    div {
+        border-radius: 5px;
+        background-color: #f2f2f2;
+        padding: 10px;
+        text-align: center;
+        font-family: Arial;
+        color: rgb(49, 47, 47);
+        margin: 0;
+      }
+</style>
+
+<center>
+<div class="groove" >
+
+    <h2>Header</h2>
+<input type="hidden" id="text" value="{{para}}">
+
+<pre><textarea ALIGN=LEFT id="console" contenteditable="true" onkeyup="getLineNumber(this);" onmouseup="this.onkeyup();"></textarea></pre>
+
+<p><label>operation: <input type="text" name="foo" id="input" value="" /></label> 
+    <label>Line number: <input id="lineNo" type="text" /> </label>
+    <label>Position: <input id="posNo" type="text" /> </label>
+</p>
+
+</div>
+</center>
+
+
+
+
+<script>    
+    var val=document.getElementById("text").value;
+    console.log(val);
+    document.getElementById("console").innerHTML=val;
+</script>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script> 
+
+<script>
+    
+    var roomName = {{ room_name_json }};
+    var Name = {{ name_json }};
+
+    console.d = function(log){
+        document.getElementById("input").value=log;
+        $('#input').text(log);
+        var message = log;
+        chatSocket.send(JSON.stringify({
+            'message': message,
+            'name': Name
+        }));
+
+        messageInputDom.value = '';
+    }
+    var callback = function(e){
+        textarea= document.getElementById('console');
+        console.log(e.type, e);
+        var text = "";
+        var code = e.which ? e.which : e.keyCode;
+        var arr=[13,38,40,37,39,27,17,18,9,16,20,91,93,36,35,45,33,34,144];
+        //del 46
+        //back 8
+        if(arr.indexOf(code)==-1){
+            if(code==8){
+                text += 'd '+(textarea.selectionStart);
+            }
+            else if(code==46){
+                text += 'd '+(textarea.selectionStart+1);
+            }
+            else{
+                text += 'i '+textarea.selectionStart+" "+code;
+            }
+        }
+        console.d(text);
+    };
+
+    
+    $('#console').keydown(callback);
+
+    $('.keydown').click(function(e){
+        var code = $(this).data('code');
+        $('#console').trigger(
+            jQuery.Event( '', { keyCode: code, which: code } )
+        );
+    });
+
+    function getLineNumber(textarea) {
+        document.getElementById('lineNo').value = textarea.value.substr(0, textarea.selectionStart).split("\n").length;
+        document.getElementById('posNo').value = textarea.selectionStart;
+        //document.getElementById('input').value ="";
+    }
+
+
+    var chatSocket = new WebSocket(
+        'ws://' + window.location.host +
+        '/ws/chat/' + Name+'/'+roomName + '/');
+
+    chatSocket.onmessage = function(e) {
+        var data = JSON.parse(e.data);
+        var message = data['message']+' '+data['name'];
+        if(data['name']!=Name){
+        document.querySelector('#console').value += (message + '\n');}
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+</script>
