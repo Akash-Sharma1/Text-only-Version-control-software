@@ -93,20 +93,22 @@
         if(tmp.length<2){return;}
         var ww="";
         if(tmp.length==3)ww=tmp[2];
+        
+        ww=String.fromCharCode(ww);
         var dict={
             'op':tmp[0],
             'pos':tmp[1],
             'word':ww,
             'name':Name,
             'time':new Date().getTime(),
-            'doc':document.getElementById('Document').innerHTML
+            'doc':document.getElementById('Document').value
         };
         cache.push(dict);
 
         console.log(cache);
         console.log("Sending");
-        console.log(dict);
-        
+        //console.log(dict);
+
         console.d(dict);
     };
 
@@ -142,10 +144,14 @@
                 return a.time < b.time
             });
 
-            var doc=document.getElementById('Document').innerHTML;
+            var doc=document.getElementById('Document').value;
             var flag=1;
+            console.log('cache length '+cache.length);
+            console.log('intial '+doc);
+
             for(i=0 ; i<cache.length;i++){
                 if(data['time']<=cache[i]['time']){
+                    console.log('Here '+ doc);
                     flag=0;
                     doc=cache[i]['doc'];
                     doc=operate(data['op'],data['pos'],doc,data['word']);
@@ -155,6 +161,7 @@
                     for(j=i;j<cache.length;j++){
                         doc=operate(cache[j]['op'],cache[i]['pos'],doc,cache[i]['word']);
                         cache[i]['pos']+=extra;
+                        console.log('Here '+ doc);
                         cache[i]['doc']=doc;
                     }
                     i=j;
@@ -163,7 +170,7 @@
             if(flag==1){
                 doc=operate(data['op'],data['pos'],doc,data['word']);
             }
-            document.getElementById('Document').innerHTML=doc;
+            document.getElementById('Document').value=doc;
             document.querySelector('#console').value = (message + '\n');
         }
     };
@@ -177,13 +184,13 @@
             doc=doc.substring(0,pos-1)+doc.substring(pos+1,doc.length);
         }
         else if(op=='i'){
-            
+            console.log(pos+' '+word);
             console.log(doc);
             if(pos>=doc.length){
-                doc+=String.fromCharCode(word);
+                doc+=word;
             }
             else{
-                doc=doc.substring(0,pos)+String.fromCharCode(word)+doc.substring(pos,doc.length);
+                doc=doc.substring(0,pos)+word+doc.substring(pos,doc.length);
             }
             console.log(doc);
         }
