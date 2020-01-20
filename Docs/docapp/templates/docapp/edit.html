@@ -3,7 +3,7 @@
         outline: none;
       resize: none;
       width: 1066px;
-      height: 200px;     
+      height: 600px;     
       border-radius: 4px;
       border: 1px solid #cccccc;
       padding: 5px;
@@ -32,11 +32,11 @@
 <input type="hidden" id="text" value="{{para}}">
 
 <pre><textarea ALIGN=LEFT id="Document" contenteditable="true" onkeyup="getLineNumber(this);" onmouseup="this.onkeyup();"></textarea></pre>
-<pre><textarea ALIGN=LEFT id="console" ></textarea></pre>
+<pre><textarea ALIGN=LEFT id="console" type="hidden"></textarea></pre>
 
-<p><label>operation: <input type="text" name="foo" id="input" value="" /></label> 
-    <label>Line number: <input id="lineNo" type="text" /> </label>
-    <label>Position: <input id="posNo" type="text" /> </label>
+<p><label>operation: <input type="hidden" name="foo" id="input" value="" /></label> 
+    <label>Line number: <input id="lineNo" type="hidden" /> </label>
+    <label>Position: <input id="posNo" type="hidden" /> </label>
 </p>
 
 </div>
@@ -47,7 +47,6 @@
 
 <script>    
     var val=document.getElementById("text").value;
-    console.log(val);
     document.getElementById("Document").innerHTML=val;
 </script>
 
@@ -70,15 +69,23 @@
             'time':dict['time']
         }));
     }
-    var callback = function(e){
+
+    
+    document.querySelector('#Document').focus();
+    document.querySelector('#Document').onkeypress = function(e) {
         textarea= document.getElementById('Document');
-        console.log(e.type, e);
+        //console.log(e.type, e);
         var text = "";
-        var code = e.which ? e.which : e.keyCode;
-        var arr=[13,38,40,37,39,27,17,18,9,16,20,91,93,36,35,45,33,34,144];
+        var code = e.keyCode;
+        var arr=[38,40,37,39,27,17,16,18,9,20,91,93,36,35,45,33,34,144];
         //del 46
         //back 8
         if(arr.indexOf(code)==-1){
+            
+            var charac=String.fromCharCode(code);
+            if(code==13){
+                charac='\n';
+            }
             if(code==8){
                 text += 'd '+(textarea.selectionStart);
             }
@@ -86,15 +93,16 @@
                 text += 'd '+(textarea.selectionStart+1);
             }
             else{
-                text += 'i '+textarea.selectionStart+" "+code;
+                text += 'i '+textarea.selectionStart+" "+charac;
             }
+        }
+        else{
+            return;
         }
         var tmp=text.split(' ');
         if(tmp.length<2){return;}
         var ww="";
         if(tmp.length==3)ww=tmp[2];
-        
-        ww=String.fromCharCode(ww);
         var dict={
             'op':tmp[0],
             'pos':tmp[1],
@@ -107,20 +115,14 @@
 
         console.log(cache);
         console.log("Sending");
-        //console.log(dict);
+        console.log(dict);
+        
+        if(cache.length>250){
+            cache=cache.splice(cache.length-250-1,250);
+        }
 
         console.d(dict);
     };
-
-    
-    $('#Document').keydown(callback);
-
-    $('.keydown').click(function(e){
-        var code = $(this).data('code');
-        $('#Document').trigger(
-            jQuery.Event( '', { keyCode: code, which: code } )
-        );
-    });
 
     function getLineNumber(textarea) {
         document.getElementById('lineNo').value = textarea.value.substr(0, textarea.selectionStart).split("\n").length;
@@ -146,9 +148,11 @@
 
             var doc=document.getElementById('Document').value;
             var flag=1;
-            console.log('cache length '+cache.length);
-            console.log('intial '+doc);
-
+           // console.log('cache length '+cache.length);
+            //console.log('intial '+doc);
+            if(cache.length>250){
+                cache=cache.splice(cache.length-250-1,250);
+            }
             for(i=0 ; i<cache.length;i++){
                 if(data['time']<=cache[i]['time']){
                     console.log('Here '+ doc);
@@ -184,15 +188,15 @@
             doc=doc.substring(0,pos-1)+doc.substring(pos+1,doc.length);
         }
         else if(op=='i'){
-            console.log(pos+' '+word);
-            console.log(doc);
+           // console.log(pos+' '+word);
+            //console.log(doc);
             if(pos>=doc.length){
                 doc+=word;
             }
             else{
                 doc=doc.substring(0,pos)+word+doc.substring(pos,doc.length);
             }
-            console.log(doc);
+           // console.log(doc);
         }
         return doc;
     }
