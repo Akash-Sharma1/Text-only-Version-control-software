@@ -3,7 +3,7 @@
         outline: none;
       resize: none;
       width: 1066px;
-      height: 500px;     
+      height: 200px;     
       border-radius: 4px;
       border: 1px solid #cccccc;
       padding: 5px;
@@ -31,7 +31,8 @@
     <h2>Header</h2>
 <input type="hidden" id="text" value="{{para}}">
 
-<pre><textarea ALIGN=LEFT id="console" contenteditable="true" onkeyup="getLineNumber(this);" onmouseup="this.onkeyup();"></textarea></pre>
+<pre><textarea ALIGN=LEFT id="Document" contenteditable="true" onkeyup="getLineNumber(this);" onmouseup="this.onkeyup();"></textarea></pre>
+<pre><textarea ALIGN=LEFT id="console" ></textarea></pre>
 
 <p><label>operation: <input type="text" name="foo" id="input" value="" /></label> 
     <label>Line number: <input id="lineNo" type="text" /> </label>
@@ -47,29 +48,30 @@
 <script>    
     var val=document.getElementById("text").value;
     console.log(val);
-    document.getElementById("console").innerHTML=val;
+    document.getElementById("Document").innerHTML=val;
 </script>
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script> 
 
 <script>
-    
+    var cache=[];
+
     var roomName = {{ room_name_json }};
     var Name = {{ name_json }};
 
-    console.d = function(log){
-        document.getElementById("input").value=log;
-        $('#input').text(log);
-        var message = log;
+    console.d = function(dict){
+        document.getElementById("input").value=dict['op'];
+        $('#input').text(dict['op']);
         chatSocket.send(JSON.stringify({
-            'message': message,
-            'name': Name
+            'op': dict['op'],
+            'name': dict['name'],
+            'word': dict['word'],
+            'pos':dict['pos'],
+            'time':dict['time']
         }));
-
-        messageInputDom.value = '';
     }
     var callback = function(e){
-        textarea= document.getElementById('console');
+        textarea= document.getElementById('Document');
         console.log(e.type, e);
         var text = "";
         var code = e.which ? e.which : e.keyCode;
@@ -87,15 +89,33 @@
                 text += 'i '+textarea.selectionStart+" "+code;
             }
         }
-        console.d(text);
+        var tmp=text.split(' ');
+        if(tmp.length<2){return;}
+        var ww="";
+        if(tmp.length==3)ww=tmp[2];
+        var dict={
+            'op':tmp[0],
+            'pos':tmp[1],
+            'word':ww,
+            'name':Name,
+            'time':new Date().getTime(),
+            'doc':document.getElementById('Document').innerHTML
+        };
+        cache.push(dict);
+
+        console.log(cache);
+        console.log("Sending");
+        console.log(dict);
+        
+        console.d(dict);
     };
 
     
-    $('#console').keydown(callback);
+    $('#Document').keydown(callback);
 
     $('.keydown').click(function(e){
         var code = $(this).data('code');
-        $('#console').trigger(
+        $('#Document').trigger(
             jQuery.Event( '', { keyCode: code, which: code } )
         );
     });
@@ -113,13 +133,60 @@
 
     chatSocket.onmessage = function(e) {
         var data = JSON.parse(e.data);
-        var message = data['message']+' '+data['name'];
         if(data['name']!=Name){
-        document.querySelector('#console').value += (message + '\n');}
+            console.log("recieve");
+            console.log(data);
+            var message = data['op']+' '+data['name']+' '+data['pos']+' '+data['time']+' '+data['word'];
+            
+            cache.sort(function(a,b) {
+                return a.time < b.time
+            });
+
+            var doc=document.getElementById('Document').innerHTML;
+            var flag=1;
+            for(i=0 ; i<cache.length;i++){
+                if(data['time']<=cache[i]['time']){
+                    flag=0;
+                    doc=cache[i]['doc'];
+                    doc=operate(data['op'],data['pos'],doc,data['word']);
+                    var extra=0;
+                    if(data['op']=='d')extra=-1;
+                    else if(data['op']=='i')extra=1;
+                    for(j=i;j<cache.length;j++){
+                        doc=operate(cache[j]['op'],cache[i]['pos'],doc,cache[i]['word']);
+                        cache[i]['pos']+=extra;
+                        cache[i]['doc']=doc;
+                    }
+                    i=j;
+                }
+            }
+            if(flag==1){
+                doc=operate(data['op'],data['pos'],doc,data['word']);
+            }
+            document.getElementById('Document').innerHTML=doc;
+            document.querySelector('#console').value = (message + '\n');
+        }
     };
 
     chatSocket.onclose = function(e) {
         console.error('Chat socket closed unexpectedly');
     };
 
+    function operate(op,pos,doc,word){
+        if(op=='d'){
+            doc=doc.substring(0,pos-1)+doc.substring(pos+1,doc.length);
+        }
+        else if(op=='i'){
+            
+            console.log(doc);
+            if(pos>=doc.length){
+                doc+=String.fromCharCode(word);
+            }
+            else{
+                doc=doc.substring(0,pos)+String.fromCharCode(word)+doc.substring(pos,doc.length);
+            }
+            console.log(doc);
+        }
+        return doc;
+    }
 </script>
