@@ -1,0 +1,203 @@
+<style>
+    textarea {
+        outline: none;
+      resize: none;
+      width: 1066px;
+      height: 600px;     
+      border-radius: 4px;
+      border: 1px solid #cccccc;
+      padding: 5px;
+    }
+    input[type=text], select {
+        padding: 8px 20px;
+        margin: 8px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+    div {
+        border-radius: 5px;
+        background-color: #f2f2f2;
+        padding: 10px;
+        text-align: center;
+        font-family: Arial;
+        color: rgb(49, 47, 47);
+        margin: 0;
+      }
+</style>
+
+<center>
+<div class="groove" >
+
+    <h2>Header</h2>
+<input type="hidden" id="text" value="{{para}}">
+
+<pre><textarea ALIGN=LEFT id="Document" contenteditable="true" onkeyup="getLineNumber(this);" onmouseup="this.onkeyup();"></textarea></pre>
+<pre><textarea ALIGN=LEFT id="console" type="hidden"></textarea></pre>
+
+<p><label>operation: <input type="hidden" name="foo" id="input" value="" /></label> 
+    <label>Line number: <input id="lineNo" type="hidden" /> </label>
+    <label>Position: <input id="posNo" type="hidden" /> </label>
+</p>
+
+</div>
+</center>
+
+
+
+
+<script>    
+    var val=document.getElementById("text").value;
+    document.getElementById("Document").innerHTML=val;
+</script>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script> 
+
+<script>
+    var cache=[];
+
+    var roomName = {{ room_name_json }};
+    var Name = {{ name_json }};
+
+    console.d = function(dict){
+        document.getElementById("input").value=dict['op'];
+        $('#input').text(dict['op']);
+        chatSocket.send(JSON.stringify({
+            'op': dict['op'],
+            'name': dict['name'],
+            'word': dict['word'],
+            'pos':dict['pos'],
+            'time':dict['time']
+        }));
+    }
+
+    
+    document.querySelector('#Document').focus();
+    document.querySelector('#Document').onkeypress = function(e) {
+        textarea= document.getElementById('Document');
+        //console.log(e.type, e);
+        var text = "";
+        var code = e.keyCode;
+        var arr=[38,40,37,39,27,17,16,18,9,20,91,93,36,35,45,33,34,144];
+        //del 46
+        //back 8
+        if(arr.indexOf(code)==-1){
+            
+            var charac=String.fromCharCode(code);
+            if(code==13){
+                charac='\n';
+            }
+            if(code==8){
+                text += 'd '+(textarea.selectionStart);
+            }
+            else if(code==46){
+                text += 'd '+(textarea.selectionStart+1);
+            }
+            else{
+                text += 'i '+textarea.selectionStart+" "+charac;
+            }
+        }
+        else{
+            return;
+        }
+        var tmp=text.split(' ');
+        if(tmp.length<2){return;}
+        var ww="";
+        if(tmp.length==3)ww=tmp[2];
+        var dict={
+            'op':tmp[0],
+            'pos':tmp[1],
+            'word':ww,
+            'name':Name,
+            'time':new Date().getTime(),
+            'doc':document.getElementById('Document').value
+        };
+        cache.push(dict);
+
+        console.log(cache);
+        console.log("Sending");
+        console.log(dict);
+        
+        if(cache.length>250){
+            cache=cache.splice(cache.length-250-1,250);
+        }
+
+        console.d(dict);
+    };
+
+    function getLineNumber(textarea) {
+        document.getElementById('lineNo').value = textarea.value.substr(0, textarea.selectionStart).split("\n").length;
+        document.getElementById('posNo').value = textarea.selectionStart;
+        //document.getElementById('input').value ="";
+    }
+
+
+    var chatSocket = new WebSocket(
+        'ws://' + window.location.host +
+        '/ws/chat/' + Name+'/'+roomName + '/');
+
+    chatSocket.onmessage = function(e) {
+        var data = JSON.parse(e.data);
+        if(data['name']!=Name){
+            console.log("recieve");
+            console.log(data);
+            var message = data['op']+' '+data['name']+' '+data['pos']+' '+data['time']+' '+data['word'];
+            
+            cache.sort(function(a,b) {
+                return a.time < b.time
+            });
+
+            var doc=document.getElementById('Document').value;
+            var flag=1;
+           // console.log('cache length '+cache.length);
+            //console.log('intial '+doc);
+            if(cache.length>250){
+                cache=cache.splice(cache.length-250-1,250);
+            }
+            for(i=0 ; i<cache.length;i++){
+                if(data['time']<=cache[i]['time']){
+                    console.log('Here '+ doc);
+                    flag=0;
+                    doc=cache[i]['doc'];
+                    doc=operate(data['op'],data['pos'],doc,data['word']);
+                    var extra=0;
+                    if(data['op']=='d')extra=-1;
+                    else if(data['op']=='i')extra=1;
+                    for(j=i;j<cache.length;j++){
+                        doc=operate(cache[j]['op'],cache[i]['pos'],doc,cache[i]['word']);
+                        cache[i]['pos']+=extra;
+                        console.log('Here '+ doc);
+                        cache[i]['doc']=doc;
+                    }
+                    i=j;
+                }
+            }
+            if(flag==1){
+                doc=operate(data['op'],data['pos'],doc,data['word']);
+            }
+            document.getElementById('Document').value=doc;
+            document.querySelector('#console').value = (message + '\n');
+        }
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    function operate(op,pos,doc,word){
+        if(op=='d'){
+            doc=doc.substring(0,pos-1)+doc.substring(pos+1,doc.length);
+        }
+        else if(op=='i'){
+           // console.log(pos+' '+word);
+            //console.log(doc);
+            if(pos>=doc.length){
+                doc+=word;
+            }
+            else{
+                doc=doc.substring(0,pos)+word+doc.substring(pos,doc.length);
+            }
+           // console.log(doc);
+        }
+        return doc;
+    }
+</script>
