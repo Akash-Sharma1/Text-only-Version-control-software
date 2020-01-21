@@ -180,40 +180,7 @@ def rollback(request):
             arr.append(temp)
         return render(request,'vc/roll.html',{'arr':arr,'email':request.session['email'],'code':request.session['code']})
 
-def makechng(m1,a,var):
-    stra=""
-    j=0
-    i=0
-    if m1[0]==0:
-        stra="Modified:."
-    elif m1[0]==1:
-        if var==1:
-            stra="Added:>>>>"
-        else:
-            stra="Removed:>>"
-    else:
-        stra="Same:>>>>>"
-    while i<len(a):
-        if a[i:i+2]=="\r\n":
-            stra+="\r\n"
-            i+=1
-            if i==len(a) or a[i:]=="\r\n" or a[i:]=="\n" or a[i:]=="\r":
-                break
-            j+=1
-            if i<len(a) and j<len(m1) and m1[j]==0:
-                stra+="Modified:."
-            elif i<len(a)  and j<len(m1) and m1[j]==1:
-                if var==1:
-                    stra+="Added:>>>>"
-                else:
-                    stra+="Removed>>>"
-            elif  i<len(a) and j<len(m1):
-                stra+="Same:>>>>>"
-        else:
-            stra+=a[i]
-        i+=1
-    return stra
-    
+
 def comp(request):
     if request.method=='POST':
         a=int(request.POST['one'])
@@ -221,13 +188,79 @@ def comp(request):
         a=get_text(request.session['code'],a)
         b=get_text(request.session['code'],b)
         dic= lcs(a,b)
-        m1=dic[0]
-        m2=dic[1]
-        #return HttpResponse(m1)
-        stra=a
-        strb=b
-        stra=makechng(m1,a,1)
-        strb=makechng(m2,b,0)
+        
+        res=dic[2]
+        stra="<span type=\""+dic[0][0]+"\">"
+        line=0
+        j=-1
+        for i in range(len(a)):
+            if i<=j:
+                continue
+            j=i
+            if a[i:i+2]=="\r\n":
+                stra+="</span><br>"
+                if line+1<len(dic[0]):
+                    stra+="<span type=\""+dic[0][line+1]+"\">"
+                j+=2
+                line+=1
+                continue
+            if res[i]==1:
+                stra+="<font color=\"green\">"
+                stra+=a[i]
+                while(j+1<len(a) and res[j+1]==1 and a[j:j+2]!="\r\n"):
+                    j+=1
+                    stra+=a[j]
+                stra+="</font>"
+            else:
+                stra+="<font color=\"red\">"
+                stra+=a[i]
+                while(j+1<len(a) and res[j+1]==0 and a[j:j+2]!="\r\n"):
+                    j+=1
+                    stra+=a[j]
+                stra+="</font>"
+            if  a[j:j+2]=="\r\n":
+                stra+="</span><br>"
+                if line+1<len(dic[0]):
+                    stra+="<span type=\""+dic[0][line+1]+"\">"
+                j+=2
+                line+=1
+                continue
+        res=dic[3]
+        strb="<span type=\""+dic[1][0]+"\">"
+        line=0
+        j=-1
+        for i in range(len(b)):
+            if j>=i:
+                continue
+            j=i
+            if b[i:i+2]=="\r\n":
+                strb+="</span><br>"
+                if line+1<len(dic[1]):
+                    strb+="<span type=\""+dic[1][line+1]+"\">"
+                j+=2
+                line+=1
+                continue
+            if res[i]==1:
+                strb+="<font color=\"green\">"
+                strb+=b[i]
+                while(j+1<len(b) and res[j+1]==1 and b[j+1:j+1+2]!='\r\n'):
+                    j+=1
+                    strb+=b[j]
+                strb+="</font>"
+            else:
+                strb+="<font color=\"red\">"
+                strb+=b[j]
+                while(j+1<len(b) and res[j+1]==0 and b[j+1:j+2+1]!='\r\n'):
+                    j+=1
+                    strb+=b[j]
+                strb+="</font>"
+            if b[j:j+2]=="\r\n":
+                strb+="</span><br>"
+                if line+1<len(dic[1]):
+                    strb+="<span type=\""+dic[1][line+1]+"\">"
+                j+=2
+                line+=1
+                continue
         return render(request,'vc/showside.html',{'m1':stra,'m2':strb,'c1':request.POST['one'],'c2':request.POST['two']})
     else:
         ll=headt.objects.get(pk=request.session['code'])
@@ -270,108 +303,92 @@ def lcs(a,b):
     ans=ans[::-1]
     
     
-    modifyA=[]
-    modifyB=[]
-    linea=1
-    lineb=1
-    counta=countb=0
+    diffA=[]
+    diffB=[]
     i=0
     j=0
+    lineA=0
+    lineB=0
     # 0 changed
     # 1 removed / added
     # 2 same
-    c1=c2=matcha=matchb=0
-    dica=[0 for i in range(len(a))]
-    dicb=[0 for i in range(len(b))]
-    cna=[0 for i in range(len(a))]
-    cnb=[0 for i in range(len(b))]
     
     while i<len(a) or j<len(b):
-        while i<len(a) and j<len(b) and a[i:i+2]!="\r\n" and b[j:j+2]!="\r\n":
-            if(cna[i]==0):
-                counta+=1
-            cna[i]=1
-            if(cnb[j]==0):
-                countb+=1
-            cnb[j]=1
-            if(resa[i]==1 and resb[j]==1):
-                matcha+=1
-                matchb+=1
-                if(dica[i]==0):
-                    c1+=1
-                dica[i]=1
-                if(dicb[j]==0):
-                    c2+=1
-                dicb[j]=1
+        
+        wordsA=0
+        matchA=0
+        while(True):
+            wordsA=0
+            matchA=0
+            while i<len(a) and a[i:i+2]!="\r\n":
+                wordsA+=1;
+                if resa[i]==1:
+                    matchA+=1
                 i+=1
+                
+            i+=2
+            lineA+=1
+            if wordsA>0 and matchA==0:
+                diffA.append('add')
+            else:
+                break
+        
+        wordsB=0
+        matchB=0
+        
+        while(True):
+            wordsB=0
+            matchB=0
+            while j<len(b) and b[j:j+2]!="\r\n":
+                wordsB+=1;
+                if resb[j]==1:
+                    matchB+=1
                 j+=1
-            elif(resa[i]==0 and resb[j]==0):
-                i+=1
-                j+=1
-            elif(resb[j]==0):
-                j+=1
-                if(dica[i]==0):
-                    c1+=1
-                dica[i]=1
-            elif(resa[i]==0):
-                i+=1
-                if(dicb[j]==0):
-                    c2+=1
-                dicb[j]=1
-        flag=1
-        if counta==countb and c1==c2 and counta==c1 and linea==1 and lineb==1:
-            if  i==len(a) and j==len(b) :
-                flag=0
-            if i==len(a) and  b[j:j+2]=="\r\n":
-                flag=0
-            if j==len(b) and  a[i:i+2]=="\r\n":
-                flag=0
-            if a[i:i+2]=="\r\n" and b[j:j+2]=="\r\n":
-                flag=0
-            if flag ==0:
-                modifyB.append(2) #same
-                modifyA.append(2) #same
-                flag=0
-        if c1==0:
-            if i==len(a) or a[i:i+2]=="\r\n":
-                modifyA.append(1) #add
-        if c2==0:
-            if j==len(b) or b[j:j+2]=="\r\n":
-                modifyB.append(1) #remove
-        if c1>0 and flag==1 and a[i:i+2]=="\r\n":
-                modifyA.append(0) #change
-        if c2>0 and flag==1 and b[j:j+2]=="\r\n":
-                modifyB.append(0) #change    
-        if i<len(a) and a[i:i+2]=="\r\n":
-            i+=2 
-            c1=0
-            linea=1
-            matcha=0
-            counta=0
-        elif matcha>0:
-            linea+=1
-        if j<len(b) and b[j:j+2]=="\r\n":
+                
             j+=2
-            c2=0
-            lineb=1
-            countb=0
-            matchb=0
-        elif matchb>0:
-            lineb+=1
-        if i==len(a):
-            while j<len(b):
-                if b[j:j+2]=="\r\n":
-                    modifyB.append(1) #remove
-                j+=1
-            modifyB.append(1) #remove
-        if j==len(b):
-            while i<len(a):
-                if a[i:i+2]=="\r\n":
-                    modifyA.append(1) #adds
-                i+=1
-            modifyA.append(1) #add
-    dict={0:modifyA,1:modifyB,3:resa,4:resb}
-    return dict
+            lineB+=1
+            if wordsB>0 and matchB==0:
+                diffB.append('remove')
+            else:
+                break
+        
+        
+        if(matchA==matchB and wordsA==matchA and wordsB==matchB and wordsA>0):
+            diffA.append('same')
+            diffB.append('same')
+            continue
+        
+        Blist=1        
+        Alist=1
+        if i>len(a):
+            Alist=0
+        if j>len(b):
+            Blist=0
+        
+        while matchA!=matchB and i<len(a) and j<len(b):
+            if(matchA>matchB and j<len(b)):
+                while j<len(b) and b[j:j+2]!="\r\n":
+                    if resb[j]==1:
+                        matchB+=1
+                    j+=1
+                j+=2
+                lineB+=1
+                Blist+=1
+            elif i<len(a):
+                while i<len(a) and a[i:i+2]!="\r\n":
+                    if resa[i]==1:
+                        matchA+=1
+                    i+=1
+                i+=2
+                lineA+=1
+                Alist+=1
+        
+        for ind in range(Alist):
+            diffA.append('changed')
+        for ind in range(Blist):
+            diffB.append('changed')
     
+    dict={0:diffA,1:diffB,2:resa,3:resb}
+    return dict
 #lcs("abc\r\ndefgh\r\nijklmnopq\r\nrstuvw\r\nxyz","abc\r\ndefgh\r\nhrs\r\nstuv\r\nabcdefgh")
                    
